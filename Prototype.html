@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Science Quiz Showdown</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(120deg, #1e90ff, #00bfff);
+    color: white;
+    text-align: center;
+    padding: 30px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  h1 { font-size: 2.2em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); }
+  #quiz-box {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(5px);
+    padding: 25px;
+    border-radius: 15px;
+    max-width: 600px;
+    width: 90%;
+    margin: 30px auto;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  }
+  .option {
+    display: block;
+    margin: 10px auto;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    font-size: 1em;
+    padding: 12px;
+    width: 90%;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+    text-align: left;
+  }
+  .option:hover { background: rgba(255, 255, 255, 0.4); transform: translateY(-2px); }
+  #result { font-size: 1.3em; margin-top: 20px; font-weight: bold; }
+  #score-display { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; color: #ffe066; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); }
+  #restart {
+    display: none;
+    margin-top: 20px;
+    background: #fff;
+    color: #0077ff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  }
+  #timer {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    background: rgba(255,255,255,0.2);
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 1.1em;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  #chart-container {
+    margin-top: 20px;
+    background: rgba(0,0,0,0.2);
+    padding: 15px;
+    border-radius: 10px;
+  }
+  #analysis {
+    margin-top: 15px;
+    line-height: 1.6;
+    text-align: left;
+    padding: 0 10%;
+  }
+  #analysis b {
+    color: #ffe066;
+    display: block;
+    margin-bottom: 5px;
+  }
+  #category-select {
+    background: white;
+    color: #0077ff;
+    border-radius: 10px;
+    padding: 10px 15px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🔬 Science Quiz Showdown 🔬</h1>
+<div id="timer">⏱️ Time: 0s</div>
+
+<div id="quiz-box">
+  <div id="score-display">Score: 0 | Streak: 0</div>
+  <div id="category-box">
+    <h2>Select a category to begin:</h2>
+    <select id="category-select">
+      <option value="17">Science & Nature</option>
+      <option value="18">Computers</option>
+      <option value="19">Mathematics</option>
+      <option value="30">Gadgets</option>
+    </select>
+    <button id="start-btn">Start Quiz</button>
+  </div>
+
+  <h2 id="question"></h2>
+  <div id="options"></div>
+  <p id="result"></p>
+
+  <div id="chart-container" style="display:none;">
+    <canvas id="accuracyChart" width="200" height="200"></canvas>
+  </div>
+  <p id="analysis"></p>
+  <button id="restart" onclick="restartGame()">Restart Game</button>
+</div>
+
+<script>
+let questions = [];
+let current = 0, score = 0, correctCount = 0, streak = 0, totalTime = 0, startTime, timerInterval, elapsedSeconds = 0, myChart;
+
+// Start button logic
+document.getElementById("start-btn").onclick = async () => {
+  const category = document.getElementById("category-select").value;
+  await loadQuestions(category);
+  document.getElementById("category-box").style.display = "none";
+  showQuestion();
+};
+
+// Load questions from Open Trivia API
+async function loadQuestions(categoryId) {
+  const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${categoryId}&type=multiple`);
+  const data = await res.json();
+  questions = data.results.map(q => ({
+    question: q.question,
+    options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5),
+    answer: q.correct_answer,
+    points: 1
+  }));
+}
+
+// Timer functions
+function startTimer() {
+  const timerEl = document.getElementById("timer");
+  elapsedSeconds = 0;
+  timerInterval = setInterval(() => {
+    elapsedSeconds++;
+    timerEl.innerText = `⏱️ Time: ${elapsedSeconds}s`;
+  }, 1000);
+}
+function stopTimer() { clearInterval(timerInterval); }
+
+// Score update
+function updateScoreDisplay() {
+  document.getElementById("score-display").innerText = `Score: ${score} | Streak: ${streak}`;
+}
+
+// Show next question
+function showQuestion() {
+  if (current >= questions.length) return showResult();
+  const q = questions[current];
+  document.getElementById("question").innerHTML = `${current + 1}. ${q.question}`;
+  document.getElementById("result").innerText = "";
+  document.getElementById("chart-container").style.display = "none";
+  updateScoreDisplay();
+  const optionsHTML = q.options.map(opt => `<button class="option" onclick="checkAnswer('${opt.replace(/'/g, "\\'")}')">${opt}</button>`).join('');
+  document.getElementById("options").innerHTML = optionsHTML;
+  startTime = new Date();
+  startTimer();
+}
+
+// Check answer
+function checkAnswer(selected) {
+  stopTimer();
+  const timeTaken = (new Date() - startTime) / 1000;
+  totalTime += timeTaken;
+  const q = questions[current];
+  let resultText = "", pointsEarned = 0;
+  if (selected === q.answer) {
+    correctCount++; streak++;
+    pointsEarned = 10 + (timeTaken <= 5 ? 10 : 0) + (streak > 1 ? streak * 5 : 0);
+    score += pointsEarned;
+    resultText = `✅ Correct! (+${pointsEarned}) | Streak: ${streak} | Time: ${timeTaken.toFixed(1)}s`;
+  } else {
+    streak = 0;
+    resultText = `❌ Wrong! Correct: ${q.answer} | Streak Reset | Time: ${timeTaken.toFixed(1)}s`;
+  }
+  document.getElementById("result").innerText = resultText;
+  updateScoreDisplay();
+  Array.from(document.getElementById("options").children).forEach(btn => btn.disabled = true);
+  current++;
+  setTimeout(showQuestion, 1500);
+}
+
+// Final result
+function showResult() {
+  document.getElementById("question").innerText = "🏁 Game Over! Final Results";
+  document.getElementById("options").innerHTML = "";
+  document.getElementById("restart").style.display = "block";
+  document.getElementById("chart-container").style.display = "block";
+  document.getElementById("timer").style.display = "none";
+  document.getElementById("score-display").innerText = `FINAL SCORE: ${score}`;
+  const accuracy = (correctCount / questions.length) * 100;
+  const avgTime = totalTime / questions.length;
+  const grade = accuracy >= 80 ? "A+ (Expert)" : accuracy >= 60 ? "B (Great)" : "C (Needs Practice)";
+  document.getElementById("analysis").innerHTML = `
+    <b>Result Analysis:</b>
+    🏆 Final Grade: ${grade}<br>
+    💰 Total Score: ${score}<br>
+    ✅ Correct: ${correctCount}<br>
+    ❌ Wrong: ${questions.length - correctCount}<br>
+    🎯 Accuracy: ${accuracy.toFixed(1)}%<br>
+    ⏱️ Avg Time: ${avgTime.toFixed(1)}s`;
+  if (myChart) myChart.destroy();
+  const ctx = document.getElementById('accuracyChart').getContext('2d');
+  myChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Correct', 'Wrong'],
+      datasets: [{ data: [correctCount, questions.length - correctCount], backgroundColor: ['#00FF7F', '#FF6347'] }]
+    },
+    options: { plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Performance Breakdown', color: 'white' } } }
+  });
+}
+
+function restartGame() {
+  current = score = correctCount = streak = totalTime = 0;
+  document.getElementById("restart").style.display = "none";
+  document.getElementById("analysis").innerText = "";
+  document.getElementById("result").innerText = "";
+  document.getElementById("chart-container").style.display = "none";
+  showQuestion();
+}
+</script>
+
+</body>
+</html>
+
