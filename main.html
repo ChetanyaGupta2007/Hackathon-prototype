@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Science Quiz Showdown</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+<link rel="icon" href="Screenshot 2025-10-29 160904.png" type="image/x-icon">
+<style>
+ html, body { height: 100%; margin: 0; padding: 0; }
+ body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(120deg, #1e90ff, #00bfff);
+  color: rgb(255, 255, 255);
+  text-align: center;
+  padding: 100px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+ }
+ h1 { font-size: 2.2em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+ #quiz-box {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(6px);
+  padding: 25px;
+  border-radius: 15px;
+  max-width: 600px;
+  width: 90%;
+  margin-top: 20px;
+  box-shadow: 0 8px 32px rgba(31,38,135,0.37);
+ }
+ .option {
+  display: block;
+  margin: 10px auto;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: white;
+  font-size: 1em;
+  padding: 12px;
+  width: 90%;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+  text-align: left;
+  outline: none;
+ }
+ .option:hover { background: rgba(255,255,255,0.4); transform: translateY(-2px); }
+ .option.selected { border: 3px solid #ffe066; background: rgba(255,255,255,0.3); }
+ #result { font-size: 1.2em; margin-top: 20px; font-weight: bold; }
+ #score-display { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; color: #ffe066; }
+ #restart, #start-btn, #login-btn, #submit-mcq {
+  background: #fff;
+  color: #0077ff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  margin-top: 20px;
+ }
+ #restart { display: none; }
+ #timer {
+  position: fixed;
+  top: 20px;
+  right: 30px;
+  background: rgba(255,255,255,0.2);
+  padding: 10px 15px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 1.1em;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  display: none;
+ }
+ #chart-container { margin-top: 20px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; }
+ #analysis { margin-top: 15px; line-height: 1.6; text-align: left; padding: 0 10%; }
+ #analysis b { color: #ffe066; display: block; margin-bottom: 5px; }
+ #category-select, #mode-select, #username-input {
+  background: white; color: #0077ff; border-radius: 10px; padding: 10px 15px;
+  font-weight: bold; cursor: pointer; margin-top: 10px; margin-right: 10px;
+  border: none;
+ }
+ #login-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+ }
+ #quiz-content { display: none; }
+
+ #post-answer-info {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 10px;
+  display: none;
+  text-align: left;
+  overflow: auto; 
+ }
+ #post-answer-info img {
+  float: right;
+  margin-left: 10px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ffe066;
+ }
+</style>
+</head>
+<body>
+
+<h1>🔬 Science Quiz Showdown 🔬</h1>
+<div id="timer">⏱️ Time: 0s</div>
+
+<div id="quiz-box">
+
+ <div id="login-page">
+  <h2>👋 Welcome, Challenger!</h2>
+  <input type="text" id="username-input" placeholder="Enter Your Username" required>
+  <button id="login-btn">Let's Go!</button>
+ </div>
+
+ <div id="quiz-content">
+  <div id="score-display"></div>
+
+  <div id="category-box">
+   <h2>Select Mode & Category:</h2>
+   <select id="mode-select">
+    <option value="standard">Standard (Single Correct)</option>
+    <option value="multiple-correct">Advanced (Multiple Correct)</option>
+    <option value="fact-fiction">Fact or Fiction (True/False)</option>
+   </select>
+   <select id="category-select">
+    <option value="17">Science & Nature</option>
+    <option value="18">Computers</option>
+    <option value="19">Mathematics</option>
+    <option value="30">Gadgets</option>
+   </select>
+   <button id="start-btn">Start Quiz</button>
+  </div>
+
+  <h2 id="question"></h2>
+  <div id="options"></div>
+  <button id="submit-mcq" style="display:none;">Submit Answers</button>
+  <p id="result"></p>
+  
+  <div id="post-answer-info">
+   <img id="scientist-image" src="" alt="Famous Scientist" style="display:none;">
+   <b>🔬 Explanation:</b> <span id="explanation-text"></span>
+  </div>
+
+  <div id="chart-container" style="display:none;">
+   <canvas id="accuracyChart" width="200" height="200"></canvas>
+  </div>
+  <p id="analysis"></p>
+  <button id="restart" onclick="restartGame()">Restart Game</button>
+ </div>
+</div>
+
+<audio id="correct-sfx" src="path/to/correct.mp3" preload="auto"></audio>
+<audio id="wrong-sfx" src="path/to/wrong.mp3" preload="auto"></audio>
+
+<script>
+let questions = [], current = 0, score = 0, correctCount = 0, streak = 0, totalTime = 0, username = '';
+let startTime, timerInterval, elapsedSeconds = 0, myChart;
+let currentMode = 'standard';
+let selectedAnswers = [];
+
+// --- Config Data ---
+
+// Placeholder array for famous scientists' images (Replace with actual paths or hosted images)
+const scientistImages = [
+ 
+ 'data:image/jpeg;base64,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',
+ 'https://www.sapaviva.com/wp-content/uploads/2017/06/9S.-Marie-Curie-1867-1934-1-1918x1918.jpg',
+ 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRCWxrB-ORxY7BBb1obzUW0kgCkfn8Ash9IKnNyR0WHBlsUyMIcfLu8Vyl-O3xXWTpZiOyYdPV3x_pxm6HaT9vZVY-78BQuA2Sa-WVTEm02',
+ 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ8PZvj2l3zhGXbgvqeUsNl-6YYg1vo9lwwQiRU-yTFvgeUYgh5aJSs3Dk98izujxmYsYjjvr4ND7NyEcoCmcEUq5Lg_Q3sndAR2wei2dVt'
+
+
+];
+
+
+// Fallback questions for Standard Mode (in case API fails)
+const fallbackQuestions = [
+    { question: "What is the chemical symbol for water?", options: ["O2", "H2O", "CO2", "NaCl"], answer: "H2O", explanation: "Water is composed of two hydrogen atoms and one oxygen atom, hence the chemical formula $\\text{H}_2\\text{O}$." },
+    { question: "What planet is known as the 'Red Planet'?", options: ["Jupiter", "Venus", "Mars", "Saturn"], answer: "Mars", explanation: "Mars gets its reddish-orange appearance from iron oxide (rust) on its surface." },
+    { question: "Which force keeps planets in orbit around the Sun?", options: ["Electromagnetism", "Tension", "Gravity", "Friction"], answer: "Gravity", explanation: "Gravity is the fundamental force of attraction between masses, which dictates orbital mechanics." },
+    { question: "What gas do plants primarily absorb during photosynthesis?", options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Methane"], answer: "Carbon Dioxide", explanation: "Plants use carbon dioxide and water to produce glucose and oxygen using sunlight." },
+    { question: "The process of a liquid turning into a gas is called what?", options: ["Sublimation", "Condensation", "Evaporation", "Freezing"], answer: "Evaporation", explanation: "Evaporation is the phase transition from liquid to gas at a temperature below the boiling point." },
+    { question: "Which is the smallest bone in the human body?", options: ["Femur", "Stapes", "Tibia", "Humerus"], answer: "Stapes", explanation: "The stapes, or stirrup bone, is located in the middle ear." },
+    { question: "What is the study of living organisms called?", options: ["Geology", "Chemistry", "Physics", "Biology"], answer: "Biology", explanation: "Biology is the natural science that studies life and living organisms." },
+    { question: "What is the unit of electrical resistance?", options: ["Ampere", "Volt", "Ohm", "Watt"], answer: "Ohm", explanation: "The ohm(Ω) is the unit of electrical resistance." },
+    { question: "What kind of rock is formed from the cooling of magma or lava?", options: ["Sedimentary", "Metamorphic", "Igneous", "Composite"], answer: "Igneous", explanation: "Igneous rocks are formed through the cooling and solidification of molten rock." },
+    { question: "Who developed the theory of relativity?", options: ["Isaac Newton", "Niels Bohr", "Albert Einstein", "Stephen Hawking"], answer: "Albert Einstein", explanation: "Albert Einstein published his theories of Special and General Relativity in the early 20th century." }
+].sort(() => Math.random() - 0.5); 
+
+// Expanded Example data for new modes 
+const customQuestions = {
+  'fact-fiction': [
+    { question: "The Earth is perfectly round.", answer: "Fiction", explanation: "The Earth is an **oblate spheroid**, slightly wider at the equator than pole-to-pole." },
+    { question: "Absolute zero is 0 Kelvin.", answer: "Fact", explanation: "Absolute zero is the lowest theoretical temperature, **0 Kelvin** (-273.15 °C)." },
+    { question: "Sound travels faster in air than in water.", answer: "Fiction", explanation: "Sound travels much faster through denser mediums like **water** or solids." },
+    { question: "A black hole is truly a 'hole' in space.", answer: "Fiction", explanation: "A black hole is an object with **immense gravity**, not a literal hole. Its escape velocity exceeds the speed of light." },
+    { question: "The chemical symbol for gold is Ag.", answer: "Fiction", explanation: "**Ag** is the symbol for Silver. The symbol for Gold is **Au** (from Aurum)." },
+    { question: "Lightning often strikes the tallest object in an area.", answer: "Fact", explanation: "Lightning tends to follow the path of least resistance, which is typically the **shortest distance** to the ground, often meaning the tallest object." },
+    { question: "The North Star is the brightest star in the night sky.", answer: "Fiction", explanation: "The brightest star is **Sirius**. The North Star (**Polaris**) is famous for being positioned almost directly over the North Pole." },
+    { question: "The average human body temperature is exactly 98.6°F (37°C).", answer: "Fiction", explanation: "This is a historical average. The actual average is slightly lower, and it **varies** throughout the day and between individuals." },
+    { question: "The primary component of the Sun is hydrogen.", answer: "Fact", explanation: "The Sun is approximately **75% hydrogen** and 24% helium by mass." },
+    { question: "All metals are solid at room temperature.", answer: "Fiction", explanation: "**Mercury** is the only metal that is liquid at standard temperature and pressure." },
+  ].sort(() => Math.random() - 0.5),
+
+  'multiple-correct': [
+    { question: "Which of the following are primary colors of light?", options: ["Red", "Blue", "Yellow", "Green"], correct_answers: ["Red", "Blue", "Green"], explanation: "The **additive primary colors** of light are Red, Green, and Blue (RGB). Yellow is a secondary color of light." },
+    { question: "Select all terrestrial planets:", options: ["Jupiter", "Mars", "Saturn", "Mercury", "Venus"], correct_answers: ["Mars", "Mercury", "Venus"], explanation: "Terrestrial planets are rocky planets: **Mercury, Venus, Earth, and Mars**. Jupiter and Saturn are gas giants." },
+    { question: "Which of these substances are considered good electrical conductors?", options: ["Wood", "Copper", "Glass", "Gold", "Rubber"], correct_answers: ["Copper", "Gold"], explanation: "**Copper and Gold** are excellent conductors due to their free-moving electrons. Wood, Glass, and Rubber are insulators." },
+    { question: "Which states of matter are compressible?", options: ["Solid", "Liquid", "Gas", "Plasma"], correct_answers: ["Gas", "Plasma"], explanation: "**Gases and Plasma** are highly compressible because their particles are far apart. Solids and liquids are nearly incompressible." },
+    { question: "Which of these are types of radiation?", options: ["Alpha", "Beta", "Gamma", "Delta"], correct_answers: ["Alpha", "Beta", "Gamma"], explanation: "**Alpha, Beta, and Gamma** are all forms of nuclear radiation. Delta is not a standard type of nuclear radiation." },
+    { question: "Which of these are essential elements for plant growth?", options: ["Carbon", "Oxygen", "Neon", "Potassium"], correct_answers: ["Carbon", "Oxygen", "Potassium"], explanation: "Plants need **Carbon** (from $\\text{CO}_2$), **Oxygen** (from $\\text{H}_2\\text{O}$), and nutrients like **Potassium**. Neon is an inert gas." },
+    { question: "Which physical changes involve the release of heat (exothermic)?", options: ["Melting", "Boiling", "Freezing", "Condensation"], correct_answers: ["Freezing", "Condensation"], explanation: "When going from a higher energy state (liquid/gas) to a lower one (solid/liquid), energy is released. **Freezing** (liquid to solid) and **Condensation** (gas to liquid) release heat." },
+    { question: "Which of the following numbers are prime numbers?", options: ["1", "2", "4", "7", "11"], correct_answers: ["2", "7", "11"], explanation: "A prime number is a natural number greater than 1 that has no positive divisors other than 1 and itself. **2, 7, and 11** fit this. 1 is not prime, and 4 is divisible by 2." },
+    { question: "Which inventions are credited to Thomas Edison?", options: ["Telephone", "Light Bulb", "Phonograph", "Printing Press"], correct_answers: ["Light Bulb", "Phonograph"], explanation: "Edison developed the practical incandescent **light bulb** and the **phonograph**. The telephone was Bell's, and the printing press was Gutenberg's." },
+    { question: "Which terms describe an object in motion?", options: ["Velocity", "Acceleration", "Mass", "Force"], correct_answers: ["Velocity", "Acceleration"], explanation: "**Velocity** is speed with direction, and **Acceleration** is the change in velocity. Both describe the state of motion. Mass and Force are properties or causes of motion." },
+  ].sort(() => Math.random() - 0.5)
+};
+
+
+// --- Game Logic Functions ---
+
+// 1. Login
+document.getElementById("login-btn").onclick = () => {
+  username = document.getElementById("username-input").value.trim();
+  if (username) {
+    document.getElementById("login-page").style.display = "none";
+    document.getElementById("quiz-content").style.display = "block";
+    updateScoreDisplay(); 
+  } else {
+    alert("Please enter a username!");
+  }
+};
+
+// 2. Start Quiz
+document.getElementById("start-btn").onclick = async () => {
+ currentMode = document.getElementById("mode-select").value;
+ const category = document.getElementById("category-select").value;
+ 
+ if (currentMode === 'standard') {
+   await loadQuestions(category);
+   if (questions.length === 0) { // Fallback if API fails
+     questions = fallbackQuestions;
+     console.warn("API failed. Using local fallback questions for Standard Mode.");
+   }
+ } else {
+   questions = customQuestions[currentMode].slice(); 
+   if (questions.length === 0) {
+     alert("Custom question data is missing for this mode.");
+     document.getElementById("category-box").style.display = "block";
+     return;
+   }
+ }
+
+ document.getElementById("category-box").style.display = "none";
+ document.getElementById("timer").style.display = "block";
+ showQuestion();
+};
+
+// 3. Load Questions (for Standard Mode)
+async function loadQuestions(categoryId) {
+ try {
+   const res = await fetch(`https://opentdb.com/api.php?amount=10&category=${categoryId}&type=multiple`);
+   const data = await res.json();
+   questions = data.results.map((q, index) => ({
+     question: q.question,
+     options: [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5),
+     answer: q.correct_answer,
+     explanation: fallbackQuestions[index % fallbackQuestions.length].explanation 
+   }));
+ } catch(error) {
+   console.error("Error fetching questions from API. Falling back to local data.", error);
+   questions = [];
+ }
+}
+
+// 4. Timer
+function startTimer() {
+ const timerEl = document.getElementById("timer");
+ elapsedSeconds = 0; 
+ clearInterval(timerInterval);
+ timerInterval = setInterval(() => {
+  elapsedSeconds++;
+  timerEl.innerText = `⏱️ Time: ${elapsedSeconds}s`;
+ }, 1000);
+}
+function stopTimer() { clearInterval(timerInterval); }
+
+// 5. Update Score Display
+function updateScoreDisplay() {
+ document.getElementById("score-display").innerHTML = `Score: <b>${score}</b> | Streak: <b>${streak}</b> | User: <b>${username || 'Guest'}</b>`;
+}
+
+// 6. Show Question
+function showQuestion() {
+ if (current >= questions.length) return showResult();
+ 
+ const q = questions[current];
+ selectedAnswers = []; 
+
+ document.getElementById("question").innerHTML = `${current + 1}. ${q.question}`;
+ document.getElementById("result").innerText = "";
+ document.getElementById("post-answer-info").style.display = "none";
+ document.getElementById("chart-container").style.display = "none";
+ document.getElementById("submit-mcq").style.display = "none";
+ document.getElementById("scientist-image").style.display = "none";
+ updateScoreDisplay();
+
+ let optionsHTML = '';
+ if (currentMode === 'fact-fiction') {
+   optionsHTML = `
+    <button class="option" onclick="checkAnswer('Fact')">Fact</button>
+    <button class="option" onclick="checkAnswer('Fiction')">Fiction</button>
+   `;
+ } else if (currentMode === 'multiple-correct') {
+   optionsHTML = q.options.map(opt => 
+     `<button class="option" onclick="selectMultiple('${opt.replace(/'/g, "\\'")}')">${opt}</button>`
+   ).join('');
+   document.getElementById("submit-mcq").style.display = "block";
+   document.getElementById("submit-mcq").onclick = () => checkMultipleCorrect();
+ } else { 
+   optionsHTML = q.options.map(opt => 
+     `<button class="option" onclick="checkAnswer('${opt.replace(/'/g, "\\'")}')">${opt}</button>`
+   ).join('');
+ }
+
+ document.getElementById("options").innerHTML = optionsHTML;
+ startTime = new Date();
+ startTimer();
+}
+
+// 7. Handle Multiple Correct Selection
+function selectMultiple(selected) {
+  const button = Array.from(document.getElementById("options").children).find(btn => btn.innerText === selected);
+  if (selectedAnswers.includes(selected)) {
+    selectedAnswers = selectedAnswers.filter(a => a !== selected);
+    button.classList.remove('selected');
+  } else {
+    selectedAnswers.push(selected);
+    button.classList.add('selected');
+  }
+}
+
+// 8. Check Multiple Correct Answer
+function checkMultipleCorrect() {
+  stopTimer();
+  const q = questions[current];
+  const timeTaken = (new Date() - startTime) / 1000;
+  totalTime += timeTaken;
+  let resultText = "", pointsEarned = 0;
+  document.getElementById("submit-mcq").style.display = "none";
+
+  // Compare selected answers with correct answers (order-independent)
+  const isCorrect = q.correct_answers.length === selectedAnswers.length && 
+           q.correct_answers.every(ans => selectedAnswers.includes(ans));
+
+  if (isCorrect) {
+    correctCount++;
+    streak++;
+    pointsEarned = 20 + (timeTaken <= 8 ? 15 : 0) + (streak > 1 ? streak * 7 : 0);
+    score += pointsEarned;
+    resultText = `✅ Perfect! (+${pointsEarned}) | Streak: ${streak} | Time: ${timeTaken.toFixed(1)}s`;
+    // document.getElementById("correct-sfx").play(); 
+  } else {
+    streak = 0;
+    resultText = `❌ Wrong! Correct: ${q.correct_answers.join(' | ')} | Streak Reset | Time: ${timeTaken.toFixed(1)}s`;
+    // document.getElementById("wrong-sfx").play(); 
+  }
+  
+  postAnswerUpdate(resultText, q.explanation, q.correct_answers);
+}
+
+// 9. Check Standard/Fact-Fiction Answer
+function checkAnswer(selected) {
+ stopTimer();
+ const q = questions[current];
+ const timeTaken = (new Date() - startTime) / 1000;
+ totalTime += timeTaken;
+ let resultText = "", pointsEarned = 0;
+
+ if (selected === q.answer) {
+  correctCount++;
+  streak++;
+  pointsEarned = 10 + (timeTaken <= 5 ? 10 : 0) + (streak > 1 ? streak * 5 : 0);
+  score += pointsEarned;
+  resultText = `✅ Correct! (+${pointsEarned}) | Streak: ${streak} | Time: ${timeTaken.toFixed(1)}s`;
+  // document.getElementById("correct-sfx").play(); 
+ } else {
+  streak = 0;
+  resultText = `❌ Wrong! Correct: ${q.answer} | Streak Reset | Time: ${timeTaken.toFixed(1)}s`;
+  // document.getElementById("wrong-sfx").play(); 
+ }
+
+ postAnswerUpdate(resultText, q.explanation, [q.answer]);
+}
+
+// 10. Post Answer Update (Explanation, Image, Disable Buttons)
+function postAnswerUpdate(resultText, explanation, correctAnswers) {
+  document.getElementById("result").innerText = resultText;
+  updateScoreDisplay();
+
+  // Show Explanation
+  document.getElementById("explanation-text").innerHTML = explanation || "No detailed explanation available for this question.";
+  
+  // Show Random Scientist Image
+  const scientistIndex = Math.floor(Math.random() * scientistImages.length);
+  document.getElementById("scientist-image").src = scientistImages[scientistIndex];
+  document.getElementById("scientist-image").style.display = "block";
+  
+  document.getElementById("post-answer-info").style.display = "block";
+
+  // Disable and highlight options
+  Array.from(document.getElementById("options").children).forEach(btn => {
+    btn.disabled = true;
+    if (correctAnswers.includes(btn.innerText)) {
+      btn.style.backgroundColor = '#00FF7F'; // Correct color
+    } else if (currentMode === 'multiple-correct' && selectedAnswers.includes(btn.innerText) && !correctAnswers.includes(btn.innerText)) {
+      btn.style.backgroundColor = '#FF6347'; // Incorrectly selected
+    }
+  });
+
+  current++;
+  // Check if quiz is over
+  if (current >= questions.length) {
+   showResult();
+  } else {
+   setTimeout(showQuestion, 4000); 
+  }
+}
+
+
+// 11. Final results
+function showResult() {
+ document.getElementById("question").innerText = "🏁 Game Over! Wanna Play Again ↑ " + username;
+ document.getElementById("options").innerHTML = "";
+ document.getElementById("post-answer-info").style.display = "none";
+ document.getElementById("restart").style.display = "block";
+ document.getElementById("chart-container").style.display = "block";
+ document.getElementById("timer").style.display = "none";
+ document.getElementById("score-display").innerHTML = `FINAL SCORE: <b>${score}</b>`;
+
+ const totalQuestions = questions.length || 1; 
+ const accuracy = (correctCount / totalQuestions) * 100;
+ const avgTime = totalTime / totalQuestions;
+ const grade = accuracy >= 80 ? "A+ (Expert)" : accuracy >= 60 ? "B (Great)" : "C (Needs Practice)";
+
+ document.getElementById("analysis").innerHTML = `
+  <b>Result Analysis:</b>
+  👤 Player: ${username}<br>
+  🕹️ Mode: ${currentMode}<br>
+  🏆 Final Grade: ${grade}<br>
+  💰 Total Score: ${score}<br>
+  ✅ Correct: ${correctCount}<br>
+  ❌ Wrong: ${questions.length - correctCount}<br>
+  🎯 Accuracy: ${accuracy.toFixed(1)}%<br>
+  ⏱️ Avg Time: ${avgTime.toFixed(1)}s
+ `;
+ if (myChart) myChart.destroy();
+ const ctx = document.getElementById('accuracyChart').getContext('2d');
+ myChart = new Chart(ctx, {
+  type: 'doughnut',
+  data: {
+   labels: ['Correct', 'Wrong'],
+   datasets: [{ data: [correctCount, questions.length - correctCount], backgroundColor: ['#00FF7F', '#FF6347'] }]
+  },
+  options: {
+   plugins: {
+    legend: { labels: { color: 'white' } },
+    title: { display: true, text: 'Performance Breakdown', color: 'white' }
+   }
+  }
+ });
+}
+
+// 12. Restart Game
+function restartGame() {
+ current = score = correctCount = streak = totalTime = 0;
+ document.getElementById("restart").style.display = "none";
+ document.getElementById("analysis").innerText = "";
+ document.getElementById("result").innerText = "";
+ document.getElementById("chart-container").style.display = "none";
+ document.getElementById("timer").style.display = "none"; 
+ document.getElementById("category-box").style.display = "block";
+ updateScoreDisplay(); 
+}
+
+
+</script>
+</body>
+</html>
